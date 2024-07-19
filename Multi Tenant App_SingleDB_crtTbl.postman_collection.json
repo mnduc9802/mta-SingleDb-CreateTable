@@ -13,18 +13,18 @@
 				"header": [
 					{
 						"key": "X-Tenant",
-						"value": "AnhGiang345",
+						"value": "AnhGiang4567",
 						"type": "text"
 					},
 					{
 						"key": "Key",
-						"value": "AG345",
+						"value": "AG4567",
 						"type": "text"
 					}
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"name\": \"AK-47\",\r\n    \"description\": \"Assault Rifle Weapon\"\r\n}",
+					"raw": "{\r\n    \"name\": \"Dac Nhan Tam\",\r\n    \"description\": \"NXB Tri Thuc\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -120,7 +120,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n  \"name\": \"AnhGiang2\",\r\n  \"isolated\": true,\r\n  \"key\": \"AG2\"\r\n}",
+					"raw": "{\r\n  \"name\": \"AnhGiang4\",\r\n  \"key\": \"AG4\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
