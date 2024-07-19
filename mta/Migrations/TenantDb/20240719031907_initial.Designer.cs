@@ -11,7 +11,7 @@ using mta.Models;
 namespace mtaSingleDbCreateTable.Migrations.TenantDb
 {
     [DbContext(typeof(TenantDbContext))]
-    [Migration("20240717084520_initial")]
+    [Migration("20240719031907_initial")]
     partial class initial
     {
         /// <inheritdoc />

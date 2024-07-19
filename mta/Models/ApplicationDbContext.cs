@@ -1,62 +1,83 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using mta.Models;
 using mta.Services;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Threading;
 
-namespace mta.Models
+public class ApplicationDbContext : DbContext
 {
-    public class ApplicationDbContext : DbContext
+    private readonly ICurrentTenantService _currentTenantService;
+    public string CurrentTenantId { get; set; }
+    private string _currentSchema;
+
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ICurrentTenantService currentTenantService) : base(options)
     {
-        private readonly ICurrentTenantService _currentTenantService;
-        public string CurrentTenantId { get; set; }
+        _currentTenantService = currentTenantService;
+        CurrentTenantId = _currentTenantService.TenantId;
+        _currentSchema = $"mta_{_currentTenantService.TenantId}";
+    }
 
-        // Constructor
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ICurrentTenantService currentTenantService) : base(options)
-        { 
-            _currentTenantService = currentTenantService;
-            CurrentTenantId = _currentTenantService.TenantId;
-        }
+    public DbSet<Product> Products { get; set; }
+    public DbSet<Tenant> Tenants { get; set; }
 
-        // DbSet
-        public DbSet<Product> Products { get; set; }
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.HasDefaultSchema(_currentSchema);
+    }
 
-        // On App Startup
-        protected override void OnModelCreating(ModelBuilder builder)
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder.UseNpgsql(options =>
         {
-            if (!string.IsNullOrEmpty(CurrentTenantId))
-            {
-                // Configure schema name with TenantId
-                builder.HasDefaultSchema(CurrentTenantId);
-            }
+            options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
+        });
+    }
 
-            builder.Entity<Product>().HasQueryFilter(a => a.TenantId == CurrentTenantId);
-        }
+    public override int SaveChanges()
+    {
+        SetSchema();
+        ValidateTenantId();
+        return base.SaveChanges();
+    }
 
-        // On Configuring
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        SetSchema();
+        ValidateTenantId();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void ValidateTenantId()
+    {
+        if (string.IsNullOrEmpty(CurrentTenantId))
         {
-            optionsBuilder.UseNpgsql("Host=localhost;Database=mtaDb;Username=mnduc9802;Password=123456");
+            throw new InvalidOperationException("Current tenant ID is not set.");
         }
-
-        // Save Changes
-        public override int SaveChanges()
+        foreach (var entry in ChangeTracker.Entries<IMustHaveTenant>().ToList())
         {
-            if (string.IsNullOrEmpty(CurrentTenantId))
+            switch (entry.State)
             {
-                throw new InvalidOperationException("Current tenant ID is not set.");
+                case EntityState.Added:
+                case EntityState.Modified:
+                    entry.Entity.TenantId = CurrentTenantId;
+                    break;
             }
-
-            foreach (var entry in ChangeTracker.Entries<IMustHaveTenant>().ToList())
-            {
-                switch (entry.State)
-                {
-                    case EntityState.Added:
-                    case EntityState.Modified:
-                        entry.Entity.TenantId = CurrentTenantId;
-                        break;
-                }
-            }
-
-            var result = base.SaveChanges();
-            return result;
         }
+    }
+
+    public void SetTenantSchema(string tenantKey)
+    {
+        _currentSchema = $"mta_{tenantKey}";
+        SetSchema();
+    }
+
+    private void SetSchema()
+    {
+        Database.ExecuteSqlRaw($"SET search_path TO \"{_currentSchema}\";");
     }
 }

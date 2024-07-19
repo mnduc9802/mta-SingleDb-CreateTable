@@ -26,6 +26,9 @@ builder.Services.AddDbContext<TenantDbContext>(options =>
 builder.Services.AddTransient<IProductService, ProductService>();
 builder.Services.AddTransient<ITenantService, TenantService>();
 
+// Registers MigrationService with scoped lifetime
+builder.Services.AddScoped<MigrationService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

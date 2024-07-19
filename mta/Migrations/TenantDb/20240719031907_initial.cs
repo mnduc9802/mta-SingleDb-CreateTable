@@ -21,6 +21,7 @@ namespace mtaSingleDbCreateTable.Migrations.TenantDb
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Tenants", x => x.Id);
+
                 });
         }
 
