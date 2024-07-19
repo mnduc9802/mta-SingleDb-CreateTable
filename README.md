@@ -1,1 +1,1 @@
-# Multi Tenant App - Single Database - Create Table
+# mta - Single Database - Create Table
