@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using mta.Services.TenantService;
 using mta.Services.TenantService.DTOs;
-using static TenantService;
+using static mta.Services.TenantService.TenantService;
 
 namespace mta.Controllers
 {

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using mta.Models;
 
 namespace mta.Services
 {
