@@ -7,77 +7,80 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 
-public class ApplicationDbContext : DbContext
+namespace mta.Models
 {
-    private readonly ICurrentTenantService _currentTenantService;
-    public string CurrentTenantId { get; set; }
-    private string _currentSchema;
-
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ICurrentTenantService currentTenantService) : base(options)
+    public class ApplicationDbContext : DbContext
     {
-        _currentTenantService = currentTenantService;
-        CurrentTenantId = _currentTenantService.TenantId;
-        _currentSchema = $"mta_{_currentTenantService.TenantId}";
-    }
+        private readonly ICurrentTenantService _currentTenantService;
+        public string CurrentTenantId { get; set; }
+        private string _currentSchema;
 
-    public DbSet<Product> Products { get; set; }
-    public DbSet<Tenant> Tenants { get; set; }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-        modelBuilder.HasDefaultSchema(_currentSchema);
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-        optionsBuilder.UseNpgsql(options =>
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ICurrentTenantService currentTenantService) : base(options)
         {
-            options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
-        });
-    }
-
-    public override int SaveChanges()
-    {
-        SetSchema();
-        ValidateTenantId();
-        return base.SaveChanges();
-    }
-
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
-    {
-        SetSchema();
-        ValidateTenantId();
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-    }
-
-    private void ValidateTenantId()
-    {
-        if (string.IsNullOrEmpty(CurrentTenantId))
-        {
-            throw new InvalidOperationException("Current tenant ID is not set.");
+            _currentTenantService = currentTenantService;
+            CurrentTenantId = _currentTenantService.TenantId;
+            _currentSchema = $"mta_{_currentTenantService.TenantId}";
         }
-        foreach (var entry in ChangeTracker.Entries<IMustHaveTenant>().ToList())
+
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Tenant> Tenants { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            switch (entry.State)
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.HasDefaultSchema(_currentSchema);
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            base.OnConfiguring(optionsBuilder);
+            optionsBuilder.UseNpgsql(options =>
             {
-                case EntityState.Added:
-                case EntityState.Modified:
-                    entry.Entity.TenantId = CurrentTenantId;
-                    break;
+                options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
+            });
+        }
+
+        public override int SaveChanges()
+        {
+            SetSchema();
+            ValidateTenantId();
+            return base.SaveChanges();
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            SetSchema();
+            ValidateTenantId();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void ValidateTenantId()
+        {
+            if (string.IsNullOrEmpty(CurrentTenantId))
+            {
+                throw new InvalidOperationException("Current tenant ID is not set.");
+            }
+            foreach (var entry in ChangeTracker.Entries<IMustHaveTenant>().ToList())
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                    case EntityState.Modified:
+                        entry.Entity.TenantId = CurrentTenantId;
+                        break;
+                }
             }
         }
-    }
 
-    public void SetTenantSchema(string tenantKey)
-    {
-        _currentSchema = $"mta_{tenantKey}";
-        SetSchema();
-    }
+        public void SetTenantSchema(string tenantKey)
+        {
+            _currentSchema = $"mta_{tenantKey}";
+            SetSchema();
+        }
 
-    private void SetSchema()
-    {
-        Database.ExecuteSqlRaw($"SET search_path TO \"{_currentSchema}\";");
+        private void SetSchema()
+        {
+            Database.ExecuteSqlRaw($"SET search_path TO \"{_currentSchema}\";");
+        }
     }
 }

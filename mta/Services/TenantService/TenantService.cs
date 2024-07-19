@@ -1,62 +1,63 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using mta.Models;
-using mta.Services;
-using mta.Services.TenantService;
 using mta.Services.TenantService.DTOs;
 using Npgsql;
 using System;
 using System.Linq;
 
-public class TenantService : ITenantService
+namespace mta.Services.TenantService
 {
-    private readonly TenantDbContext _context;
-    private readonly MigrationService _migrationService;
-    private readonly ApplicationDbContext _applicationDbContext;
-
-    public TenantService(TenantDbContext context, MigrationService migrationService, ApplicationDbContext applicationDbContext)
+    public class TenantService : ITenantService
     {
-        _context = context;
-        _migrationService = migrationService;
-        _applicationDbContext = applicationDbContext;
-    }
+        private readonly TenantDbContext _context;
+        private readonly MigrationService _migrationService;
+        private readonly ApplicationDbContext _applicationDbContext;
 
-    public Tenant CreateTenant(CreateTenantRequest request)
-    {
-        // Check if the Key already exists
-        var existingTenant = _context.Tenants.FirstOrDefault(t => t.Key == request.Key);
-        if (existingTenant != null)
+        public TenantService(TenantDbContext context, MigrationService migrationService, ApplicationDbContext applicationDbContext)
         {
-            throw new DuplicateKeyException($"Key '{request.Key}' already exists. Please choose a different key.");
+            _context = context;
+            _migrationService = migrationService;
+            _applicationDbContext = applicationDbContext;
         }
 
-        string schemaName = $"mta_{request.Key}";
-        CreateSchema(schemaName);
-
-        Tenant tenant = new Tenant
+        public Tenant CreateTenant(CreateTenantRequest request)
         {
-            Id = Guid.NewGuid().ToString(),
-            Name = request.Name,
-            Key = request.Key,
-        };
+            // Check if the Key already exists
+            var existingTenant = _context.Tenants.FirstOrDefault(t => t.Key == request.Key);
+            if (existingTenant != null)
+            {
+                throw new DuplicateKeyException($"Key '{request.Key}' already exists. Please choose a different key.");
+            }
 
-        _context.Add(tenant);
-        _context.SaveChanges();
+            string schemaName = $"mta_{request.Key}";
+            CreateSchema(schemaName);
 
-        // Migrate schema
-        _migrationService.MigrateSchema(schemaName);
+            Tenant tenant = new Tenant
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = request.Name,
+                Key = request.Key,
+            };
 
-        return tenant;
-    }
+            _context.Add(tenant);
+            _context.SaveChanges();
 
-    private void CreateSchema(string schemaName)
-    {
-        _applicationDbContext.Database.ExecuteSqlRaw($"CREATE SCHEMA IF NOT EXISTS \"{schemaName}\";");
-    }
+            // Migrate schema
+            _migrationService.MigrateSchema(schemaName);
 
-    public class DuplicateKeyException : Exception
-    {
-        public DuplicateKeyException(string message) : base(message)
+            return tenant;
+        }
+
+        private void CreateSchema(string schemaName)
         {
+            _applicationDbContext.Database.ExecuteSqlRaw($"CREATE SCHEMA IF NOT EXISTS \"{schemaName}\";");
+        }
+
+        public class DuplicateKeyException : Exception
+        {
+            public DuplicateKeyException(string message) : base(message)
+            {
+            }
         }
     }
 }
