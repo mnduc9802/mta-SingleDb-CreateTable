@@ -47,15 +47,51 @@ public class CurrentTenantService : ICurrentTenantService
         using var connection = new NpgsqlConnection(_context.Database.GetConnectionString());
         connection.Open();
 
+        // Get all tables in the default schema
+        var tableNames = GetTableNames(connection);
+
+        // Create tables in the new schema
+        foreach (var tableName in tableNames)
+        {
+            if (tableName != "Tenants") // Exclude 'Tenants' table
+            {
+                CreateTableInSchema(connection, tableName, schemaName);
+            }
+        }
+    }
+
+    private IEnumerable<string> GetTableNames(NpgsqlConnection connection)
+    {
+        var tableNames = new List<string>();
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = @"
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public' -- Replace 'public' with your default schema if different
+          AND table_type = 'BASE TABLE';";
+
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    tableNames.Add(reader.GetString(0));
+                }
+            }
+        }
+
+        return tableNames;
+    }
+
+    private void CreateTableInSchema(NpgsqlConnection connection, string tableName, string schemaName)
+    {
         using (var command = connection.CreateCommand())
         {
             command.CommandText = $@"
-            CREATE TABLE IF NOT EXISTS ""{schemaName}"".""Products"" (
-                ""Id"" SERIAL PRIMARY KEY,
-                ""Name"" TEXT,
-                ""Description"" TEXT,
-                ""TenantId"" TEXT
-            );";
+        CREATE TABLE IF NOT EXISTS ""{schemaName}"".""{tableName}"" (
+            LIKE public.""{tableName}"" INCLUDING ALL
+        );";
             command.ExecuteNonQuery();
         }
     }
